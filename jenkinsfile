@@ -1,0 +1,66 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Check out') {
+            steps {
+                git branch: 'main', url: 'https://github.com/saicharan-clan/argocd_practise.git'
+            }
+        }
+            stage('Build') {
+    steps {
+        sh "docker build -t saicharan09/argocd_practise:${BUILD_NUMBER} ."
+    }
+}
+
+stage('Push to Dockerhub') {
+    steps {
+        script {
+            withCredentials([string(credentialsId: 'dockerhub', variable: 'dockerhub')]) {
+                sh 'echo $dockerhub | docker login -u saicharan09 --password-stdin'
+                sh "docker push saicharan09/argocd_practise:${BUILD_NUMBER}"
+            }
+        }
+    }
+}
+stage('Update Deployment File') {
+    environment {
+        GIT_REPO_NAME = "argocd_practise"
+        GIT_USER_NAME = "saicharan-clan"
+    }
+
+    steps {
+        echo 'Update Deployment File'
+
+        withCredentials([string(credentialsId: 'githubtoken', variable: 'githubtoken')]) {
+            script {
+                // Set Git user configurations
+                sh "git config user.email 'ssaicharan612@gmail.com'"
+                sh "git config user.name '${GIT_USER_NAME}'"
+
+                // Get the build number and update the image tag in deployment.yaml
+                def imageTag = "${BUILD_NUMBER}"
+
+                // Update the image tag in the deployment.yaml
+                sh """
+                    sed -i 's|saicharan09/argocd_practise:.*|saicharan09/argocd_practise:${imageTag}|g' deployment.yaml
+                """
+
+                // Add the changes and commit them
+                sh """
+                    git add .
+                    git commit -m 'Update deployment image to version ${imageTag}' || echo 'No changes to commit'
+                """
+
+                // Push changes to GitHub repository using the token for authentication
+                sh """
+                    git push https://${githubtoken}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:main
+                """
+            }
+        }
+    }
+}
+
+    }
+}
+
