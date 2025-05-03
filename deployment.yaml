@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: flask
-        image: saicharan09/argocd_practise:23
+        image: saicharan09/argocdpractises:23
         ports:
         - containerPort: 5000
